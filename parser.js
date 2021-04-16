@@ -16,7 +16,7 @@ const rows = [];
 
 
 
-fs.createReadStream(filePath)
+fs.createReadStream(bigPapa)
   .pipe(csv())
   .on('data', (row) => {
     rows.push(row);
@@ -33,6 +33,14 @@ fs.createReadStream(filePath)
     rows.forEach((parentProduct) => {
         // Assign current row product description
         let newParent = parentProduct.STOCK_DESCRIPTION;
+
+        // Remove any special characters from Shoe size string
+        let filteredShoeSize =  null;
+        if(parentProduct.SIZE_CODE.match(/[Ω]/) ? true : false){
+            filteredShoeSize = parentProduct.SIZE_CODE.replace(/[^a-zA-Z0-9-. ]/g,'.5');
+        } else {
+            filteredShoeSize = parentProduct.SIZE_CODE;
+        }
 
             // ANy null values should be assigned with loop below
         let parentProductStructure = {
@@ -67,9 +75,9 @@ fs.createReadStream(filePath)
                         'sku': parentProduct.STOCK_DESCRIPTION,
                         'tax:product_type': 'variable',
                         'tax:product_cat': parentProduct.CATEGORY_NAME,
-                        'attribute:Color': [parentProduct.COLOUR_CODE],
+                        'attribute:Color': [parentProduct.COLOUR_DESCRIPTION],
                         'attribute_data:Color': '1 | 1 | 1',
-                        'attribute:Size': [parentProduct.SIZE_CODE],
+                        'attribute:Size': [filteredShoeSize],
                         'attribute_data:Size': '1 | 1 | 1',
                         'attribute:ShoeType': [parentProduct.PRODUCT_TYPE],
                         'attribute_data:ShoeType': '1 | 1 | 1',
@@ -91,9 +99,9 @@ fs.createReadStream(filePath)
                         'sku': parentProduct.STOCK_DESCRIPTION,
                         'tax:product_type': 'variable',
                         'tax:product_cat': parentProduct.CATEGORY_NAME,
-                        'attribute:Color': [parentProduct.COLOUR_CODE],
+                        'attribute:Color': [parentProduct.COLOUR_DESCRIPTION],
                         'attribute_data:Color': '1 | 1 | 1',
-                        'attribute:Size': [parentProduct.SIZE_CODE],
+                        'attribute:Size': [filteredShoeSize],
                         'attribute_data:Size': '1 | 1 | 1',
                         'attribute:ShoeType': [parentProduct.PRODUCT_TYPE],
                         'attribute_data:ShoeType': '1 | 1 | 1',
@@ -105,24 +113,26 @@ fs.createReadStream(filePath)
                 x.products.map(i => {
                     // Color Adder
                     if(i['attribute:Color'] === null) {
-                       i['attribute:Color'] = [parentProduct.COLOUR_CODE];
+                       i['attribute:Color'] = [parentProduct.COLOUR_DESCRIPTION];
                     } else if (i['attribute:Color'] !== null) {
                         let g = i['attribute:Color'].find(x => {
-                            return x.localeCompare(parentProduct.COLOUR_CODE) === 0;
+                            return x.localeCompare(parentProduct.COLOUR_DESCRIPTION) === 0;
                         });
                         if(g === undefined) {
-                            i['attribute:Color'].push(parentProduct.COLOUR_CODE);
+                            i['attribute:Color'].push(parentProduct.COLOUR_DESCRIPTION);
                         }
                     }
                     // Size Adder
                     if(i['attribute:Size'] === null) {
-                        i['attribute:Size'] = [parentProduct.SIZE_CODE.replace(/[^0-9.]/g,'')];
+                        i['attribute:Size'] = [filteredShoeSize.replace(/[^0-9.]/g,'')];
                      } else if (i['attribute:Size'] !== null) {
                          let g = i['attribute:Size'].find(x => {
-                             return x.localeCompare(parentProduct.SIZE_CODE) === 0;
+                             return x.localeCompare(filteredShoeSize) === 0;
                          });
                          if(g === undefined) {
-                             i['attribute:Size'].push(parentProduct.SIZE_CODE.replace(/[^0-9.]/g,''));
+                             //if(parentProduct.SIZE_CODE)
+                             //let k = parentProduct.SIZE_C.replace(/[^a-zA-Z0-9-. ]/g,'.5');
+                             i['attribute:Size'].push(filteredShoeSize);
                          }
                      }
 
@@ -134,15 +144,19 @@ fs.createReadStream(filePath)
 
    
 
-    var writer = csvWriter({ headers: ["post_title", "post_status", "sku", "tax:product_type", "tax:product_cat", "attribute:Color", "attribute_data:Color", "attribute:Size",  "attribute_data:Size", "attribute:ShoeType", "attribute_data:ShoeType", "attribute:Brand", "attribute_data:Brand" ]})
-        writer.pipe(fs.createWriteStream('out.csv'))
-        uniqueParents.forEach(x => {
-            
-            console.log(x.products[0]['attribute:Color'].join(' | '));
+   
 
+    var writer = csvWriter({ headers: ["post_title", "post_status", "sku", "tax:product_type", "tax:product_cat", "attribute:Color", "attribute_data:Color", "attribute:Size",  "attribute_data:Size", "attribute:ShoeType", "attribute_data:ShoeType", "attribute:Brand", "attribute_data:Brand" ]})
+        writer.pipe(fs.createWriteStream('parent.csv'))
+        uniqueParents.forEach(x => {
+    
             let productTitle = x.products[0].post_title;
             let productCategory = x.products[0]['tax:product_cat'];
+            let shoeType = x.products[0]['attribute:ShoeType'];
             let colors = x.products[0]['attribute:Color'].join(' | ');
+            let sizes = x.products[0]['attribute:Size'].join(' | ');
+            let brand = x.products[0]['attribute:Brand'];
+
             writer.write([
                         productTitle,
                         'publish',
@@ -150,18 +164,62 @@ fs.createReadStream(filePath)
                         'variable',
                         productCategory,
                         colors,
-                        
-                        // 'attribute:Color': [parentProduct.COLOUR_CODE],
-                        // 'attribute_data:Color': '1 | 1 | 1',
-                        // 'attribute:Size': [parentProduct.SIZE_CODE],
-                        // 'attribute_data:Size': '1 | 1 | 1',
-                        // 'attribute:ShoeType': [parentProduct.PRODUCT_TYPE],
-                        // 'attribute_data:ShoeType': '1 | 1 | 1',
-                        // 'attribute:Brand': parentProduct.LABEL_NAME,
-                        // 'attribute_data:Brand': '1 | 1 | 1',
+                        '1 | 1 | 1',
+                        sizes,
+                        '1 | 1 | 1',
+                        shoeType,
+                        '1 | 1 | 1',
+                        brand,
+                        '1 | 1 | 1'
             ]);
         });
     writer.end()
-    console.log('Job Done');
+    console.log('Parent Job Done');
+
+
+    
+    const individualProducts = [];
+
+    // Loop over rows again 
+    rows.forEach(x => {
+        let product = {
+            parent_sku: x.STOCK_DESCRIPTION,
+            sku: x.BARCODE,
+            regular_price: x.RETAIL_PRICE,
+            tax_class: 'parent',
+            Color: x.COLOUR_DESCRIPTION,
+            Size: x.SIZE_CODE.replace(/[^a-zA-Z0-9-. ]/g,'.5'),
+            ShoeType: x.PRODUCT_TYPE,
+            Brand: x.LABEL_NAME,
+            manage_stock: 'yes',
+            Stock: x.SOH
+        }
+        individualProducts.push(product);
+    });
+
+    var writer2 = csvWriter({ headers: ["parent_sku", "sku", "regular_price", "tax_class", "meta:attribute_color", "meta:attribute_Size", "meta:attribute_ShoeType", "meta:attribute_Brand",  "manage_stock", "Stock"]})
+    writer2.pipe(fs.createWriteStream('child.csv'))
+    individualProducts.forEach(x => {
+        writer2.write([
+            x.parent_sku,
+              x.sku,
+              x.regular_price,
+              x.tax_class,
+              x.Color,
+              x.Size,
+              x.ShoeType,
+              x.Brand,
+              x.manage_stock,
+              x.Stock,     
+        ]);
+    });
+
+   writer2.end();
+   console.log('Child Job Done');
+
+
  });
+
+
+
 
